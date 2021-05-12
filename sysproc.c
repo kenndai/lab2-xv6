@@ -92,7 +92,7 @@ sys_uptime(void)
 
 //Lab2
 int
-sys_priority(void)
+sys_set_priority(void)
 {
     int priority_lv;
 

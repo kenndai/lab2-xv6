@@ -19,12 +19,6 @@ exec(char *path, char **argv)
   pde_t *pgdir, *oldpgdir;
   struct proc *curproc = myproc();
 
-  // Lab2
-  //get the initial ticks
-  acquire(&tickslock);
-  curproc->startTime = ticks;
-  release(&tickslock);
-
   begin_op();
 
   if((ip = namei(path)) == 0){
@@ -98,6 +92,13 @@ exec(char *path, char **argv)
     if(*s == '/')
       last = s+1;
   safestrcpy(curproc->name, last, sizeof(curproc->name));
+
+  // Lab2
+  //get the initial ticks
+  acquire(&tickslock);
+  curproc->startTime = ticks;
+  //curproc->burstTime = 0;
+  release(&tickslock);
 
   // Commit to the user image.
   oldpgdir = curproc->pgdir;

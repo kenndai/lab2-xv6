@@ -29,4 +29,4 @@ SYSCALL(getpid)
 SYSCALL(sbrk)
 SYSCALL(sleep)
 SYSCALL(uptime)
-SYSCALL(priority) //Lab2
+SYSCALL(set_priority) //Lab2

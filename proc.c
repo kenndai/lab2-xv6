@@ -243,6 +243,17 @@ exit(void)
   if(curproc == initproc)
     panic("init exiting");
 
+  // Lab2
+  // get the final amount of ticks
+  acquire(&tickslock);
+  curproc->finishTime = ticks;
+  release(&tickslock);
+
+  int turnaroundTime = curproc->finishTime - curproc->startTime;
+  cprintf("Turnaround time: %d ", turnaroundTime);
+  cprintf("Burst time: %d ", curproc->burstTime);
+  cprintf("Waiting time: %d\n", turnaroundTime - curproc->burstTime);
+
   // Close all open files.
   for(fd = 0; fd < NOFILE; fd++){
     if(curproc->ofile[fd]){
@@ -272,13 +283,6 @@ exit(void)
 
   // Jump into the scheduler, never to return.
   curproc->state = ZOMBIE;
-
-  // Lab2
-  // get the final amount of ticks
-  acquire(&tickslock);
-  curproc->finishTime = ticks;
-  release(&tickslock);
-
   sched();
   panic("zombie exit");
 }
@@ -347,6 +351,7 @@ scheduler(void) {
 
         acquire(&ptable.lock);
 
+        // Lab2: prioProc
         struct proc temp;
         temp.priority = 32; //initial out of bounds priority
         struct proc *prioProc = &temp; //the current highest priority process
@@ -369,6 +374,7 @@ scheduler(void) {
             }
         }
 
+        //Lab2: loop through ptable again looking for prioProc
         for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
             if (p->state != RUNNABLE)
                 continue;
@@ -377,17 +383,16 @@ scheduler(void) {
                 // Switch to chosen process.  It is the process's job
                 // to release ptable.lock and then reacquire it
                 // before jumping back to us.
-                // Lab2: changed p to prioProc
-                c->proc = prioProc;
-                switchuvm(prioProc);
-                prioProc->state = RUNNING;
+                c->proc = p;
+                switchuvm(p);
+                p->state = RUNNING;
 
-                // Lab2: decrease prioProc priority by one level before entering scheduler again
-                if (prioProc->priority != 31)
-                    prioProc->priority++;
-                prioProc->burstTime++;
+                // Lab2:decrease prioProc priority by one level before entering scheduler again
+                if (p->priority != 31)
+                    p->priority++;
+                p->burstTime++;
 
-                swtch(&(c->scheduler), prioProc->context);
+                swtch(&(c->scheduler), p->context);
                 switchkvm();
 
                 // Process is done running for now.
