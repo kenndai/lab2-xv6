@@ -89,6 +89,12 @@ found:
   p->state = EMBRYO;
   p->pid = nextpid++;
 
+  // Lab2: Initialize new fields in proc struct
+  p->priority = 15; //15 is default priority
+  p->startTime = 0;
+  p->finishTime = 0;
+  p->burstTime = 0; // a process initially has a burst time of 0
+
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -216,6 +222,9 @@ fork(void)
 
   np->state = RUNNABLE;
 
+  //Lab2: child process inherits parent's priority
+  np->priority = curproc->priority;
+
   release(&ptable.lock);
 
   return pid;
@@ -263,6 +272,13 @@ exit(void)
 
   // Jump into the scheduler, never to return.
   curproc->state = ZOMBIE;
+
+  // Lab2
+  // get the final amount of ticks
+  acquire(&tickslock);
+  curproc->finishTime = ticks;
+  release(&tickslock);
+
   sched();
   panic("zombie exit");
 }
@@ -320,39 +336,67 @@ wait(void)
 //  - eventually that process transfers control
 //      via swtch back to the scheduler.
 void
-scheduler(void)
-{
-  struct proc *p;
-  struct cpu *c = mycpu();
-  c->proc = 0;
-  
-  for(;;){
-    // Enable interrupts on this processor.
-    sti();
+scheduler(void) {
+    struct proc *p;
+    struct cpu *c = mycpu();
+    c->proc = 0;
 
-    // Loop over process table looking for process to run.
-    acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
+    for (;;) {
+        // Enable interrupts on this processor.
+        sti();
 
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
-      c->proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
+        acquire(&ptable.lock);
 
-      swtch(&(c->scheduler), p->context);
-      switchkvm();
+        struct proc temp;
+        temp.priority = 32; //initial out of bounds priority
+        struct proc *prioProc = &temp; //the current highest priority process
 
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      c->proc = 0;
+        // Lab2: get the highest priority process and age
+        for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+            if (p->state != RUNNABLE)
+                continue;
+            else if (p->state == RUNNABLE) {
+                if (p->priority <= prioProc->priority) {
+                    //increase priority of OLD prioProc
+                    if (prioProc->priority != 32 && prioProc->priority != 0)
+                        prioProc->priority--;
+                    prioProc = p;
+                }
+                //increase priority process with less priority
+                else {
+                    p->priority--;
+                }
+            }
+        }
+
+        for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+            if (p->state != RUNNABLE)
+                continue;
+            else if (p->state == RUNNABLE && prioProc == p) {
+
+                // Switch to chosen process.  It is the process's job
+                // to release ptable.lock and then reacquire it
+                // before jumping back to us.
+                // Lab2: changed p to prioProc
+                c->proc = prioProc;
+                switchuvm(prioProc);
+                prioProc->state = RUNNING;
+
+                // Lab2: decrease prioProc priority by one level before entering scheduler again
+                if (prioProc->priority != 31)
+                    prioProc->priority++;
+                prioProc->burstTime++;
+
+                swtch(&(c->scheduler), prioProc->context);
+                switchkvm();
+
+                // Process is done running for now.
+                // It should have changed its p->state before coming back.
+                c->proc = 0;
+            }
+        }
+        release(&ptable.lock);
     }
-    release(&ptable.lock);
-
-  }
 }
 
 // Enter scheduler.  Must hold only ptable.lock
@@ -531,4 +575,23 @@ procdump(void)
     }
     cprintf("\n");
   }
+}
+
+//Lab2
+//change the priority value of the current proc
+//Then transfer control to scheduler immediately (call sched()) because the priority list has been
+//changed
+//Pay attention to the lock, or directly call yield();
+int
+set_priority(int priority_lv)
+{
+    //range checking
+    if (priority_lv < 0 || priority_lv > 31) {
+        cprintf("Priority level must be between 0 and 31!\n");
+        return -1;
+    }
+    struct proc *curproc = myproc(); //gets the current process
+    curproc->priority = priority_lv;
+    yield(); //give up CPU
+    return 0;
 }
