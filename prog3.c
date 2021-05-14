@@ -5,7 +5,10 @@
 //burst time should be similar throughout all three processes
 
 int main(int argc, char* argv[]) {
-    set_priority(3);
+    int priority = 0;
+
+    set_priority(priority);
+
     int i, k;
     for (i = 0; i < 43000; i++) {
         asm("nop");
@@ -13,6 +16,6 @@ int main(int argc, char* argv[]) {
             asm("nop");
         }
     }
-    printf(1, "prog3: ");
+    printf(1, "prog3 with priority: %d and ", priority);
     exit(); //will print out turnaroundTime, burstTime, and waiting time
 }

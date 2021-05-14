@@ -56,6 +56,8 @@ struct proc {
   uint finishTime;
     //Waiting time: Turnaround time - burst time
   int burstTime;               // How many times the process has been scheduled
+  int prevGlobalTicks;         // check if global ticks have increased since the last time burstTime has
+                               // been incremented
 };
 
 // Process memory is laid out contiguously, low addresses first:

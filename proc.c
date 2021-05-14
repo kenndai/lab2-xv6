@@ -93,7 +93,8 @@ found:
   p->priority = 15; //15 is default priority
   p->startTime = 0;
   p->finishTime = 0;
-  p->burstTime = 0; // a process initially has a burst time of 0
+  p->prevGlobalTicks = 0;
+  //p->burstTime = 0; // a process initially has a burst time of 0
 
   release(&ptable.lock);
 
@@ -390,7 +391,16 @@ scheduler(void) {
                 // Lab2:decrease prioProc priority by one level before entering scheduler again
                 if (p->priority != 31)
                     p->priority++;
-                p->burstTime++;
+
+                // Lab2: Check if ticks has increased since last incrementing burstTime
+                acquire(&tickslock);
+                int currTicks = ticks;
+
+                if (p->prevGlobalTicks < currTicks) {
+                    p->prevGlobalTicks = ticks;
+                    p->burstTime++;
+                }
+                release(&tickslock);
 
                 swtch(&(c->scheduler), p->context);
                 switchkvm();

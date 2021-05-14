@@ -97,8 +97,10 @@ exec(char *path, char **argv)
   //get the initial ticks
   acquire(&tickslock);
   curproc->startTime = ticks;
-  //curproc->burstTime = 0;
+  curproc->prevGlobalTicks = ticks;
   release(&tickslock);
+
+  curproc->burstTime = 0;
 
   // Commit to the user image.
   oldpgdir = curproc->pgdir;
