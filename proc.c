@@ -396,9 +396,8 @@ scheduler(void) {
                 switchuvm(p);
                 p->state = RUNNING;
 
-                // Lab2:decrease prioProc priority by one level before entering scheduler again
-                if (p->priority < 31)
-                    p->priority++;
+                // Lab2: after process runs put it at the end of the line
+                p->priority = 31;
 
                 // Lab2: Check if ticks has increased since last incrementing burstTime
                 acquire(&tickslock);
