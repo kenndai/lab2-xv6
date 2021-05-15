@@ -374,7 +374,7 @@ scheduler(void) {
             else if (p->state == RUNNABLE) {
                 if (p->priority <= prioProc->priority) {
                     //increase priority of OLD prioProc
-                    if (prioProc->priority != 32 && prioProc->priority != 0)
+                    if (prioProc->priority != 0)
                         prioProc->priority--;
                     prioProc = p;
                 }
@@ -384,6 +384,40 @@ scheduler(void) {
                 }
             }
             //TODO extend for loop? check if its the last index and then jump into the process?
+
+            if ((p+1) == &ptable.proc[NPROC]) { //true when last process
+
+                // Switch to chosen process.  It is the process's job
+                // to release ptable.lock and then reacquire it
+                // before jumping back to us.
+                cprintf("prioProc's priority: %d \n",prioProc->priority);
+
+                c->proc = p;
+                switchuvm(p);
+                p->state = RUNNING;
+
+                // Lab2:decrease prioProc priority by one level before entering scheduler again
+                if (p->priority < 31)
+                    p->priority++;
+
+                // Lab2: Check if ticks has increased since last incrementing burstTime
+                acquire(&tickslock);
+                int currTicks = ticks;
+
+                if (p->prevGlobalTicks < currTicks) {
+                    p->prevGlobalTicks = ticks;
+                    p->burstTime++;
+                }
+                release(&tickslock);
+
+                swtch(&(c->scheduler), p->context);
+                switchkvm();
+
+                // Process is done running for now.
+                // It should have changed its p->state before coming back.
+                c->proc = 0;
+
+            }
         }
 
 //        //Lab2: loop through ptable again looking for prioProc
