@@ -16,6 +16,6 @@ int main(int argc, char* argv[]) {
             asm("nop");
         }
     }
-    printf(1, "prog1 with priority: %d and ", priority);
+    printf(1, "prog1 with set priority: %d and ", priority);
     exit(); //will print out turnaroundTime, burstTime, and waiting time
 }

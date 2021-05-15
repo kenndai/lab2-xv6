@@ -251,9 +251,12 @@ exit(void)
   release(&tickslock);
 
   int turnaroundTime = curproc->finishTime - curproc->startTime;
+  int procBurstTime = curproc->burstTime;
+
+  cprintf("New priority: %d ", curproc->priority);
   cprintf("Turnaround time: %d ", turnaroundTime);
-  cprintf("Burst time: %d ", curproc->burstTime);
-  cprintf("Waiting time: %d\n", turnaroundTime - curproc->burstTime);
+  cprintf("Burst time: %d ", procBurstTime);
+  cprintf("Waiting time: %d\n", turnaroundTime - procBurstTime);
 
   // Close all open files.
   for(fd = 0; fd < NOFILE; fd++){
@@ -357,6 +360,13 @@ scheduler(void) {
         temp.priority = 32; //initial out of bounds priority
         struct proc *prioProc = &temp; //the current highest priority process
 
+        // TODO: issue with processes aging way too quickly, possibly because of second for loop?
+        // Possible solutions:
+        // 1. add a flag value in the proc struct: after priority decreases, change the flag to true
+        // change back to false after process exits
+        // 2. wait until the end of the for loop before executing the prioProc
+        // 3. use modulo instead of incrementing and decrementing?
+
         // Lab2: get the highest priority process and age
         for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
             if (p->state != RUNNABLE)
@@ -373,43 +383,47 @@ scheduler(void) {
                     p->priority--;
                 }
             }
+            //TODO extend for loop? check if its the last index and then jump into the process?
         }
 
-        //Lab2: loop through ptable again looking for prioProc
-        for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-            if (p->state != RUNNABLE)
-                continue;
-            else if (p->state == RUNNABLE && prioProc == p) {
+//        //Lab2: loop through ptable again looking for prioProc
+//        for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+//            if (p->state != RUNNABLE)
+//                continue;
+//            else if (p->state == RUNNABLE && prioProc == p) {
+//
+//                // Switch to chosen process.  It is the process's job
+//                // to release ptable.lock and then reacquire it
+//                // before jumping back to us.
+//                cprintf("prioProc's priority: %d \n",prioProc->priority);
+//
+//                c->proc = p;
+//                switchuvm(p);
+//                p->state = RUNNING;
+//
+//                // Lab2:decrease prioProc priority by one level before entering scheduler again
+//                if (p->priority != 31)
+//                    p->priority++;
+//
+//                // Lab2: Check if ticks has increased since last incrementing burstTime
+//                acquire(&tickslock);
+//                int currTicks = ticks;
+//
+//                if (p->prevGlobalTicks < currTicks) {
+//                    p->prevGlobalTicks = ticks;
+//                    p->burstTime++;
+//                }
+//                release(&tickslock);
+//
+//                swtch(&(c->scheduler), p->context);
+//                switchkvm();
+//
+//                // Process is done running for now.
+//                // It should have changed its p->state before coming back.
+//                c->proc = 0;
+//            }
+//        }
 
-                // Switch to chosen process.  It is the process's job
-                // to release ptable.lock and then reacquire it
-                // before jumping back to us.
-                c->proc = p;
-                switchuvm(p);
-                p->state = RUNNING;
-
-                // Lab2:decrease prioProc priority by one level before entering scheduler again
-                if (p->priority != 31)
-                    p->priority++;
-
-                // Lab2: Check if ticks has increased since last incrementing burstTime
-                acquire(&tickslock);
-                int currTicks = ticks;
-
-                if (p->prevGlobalTicks < currTicks) {
-                    p->prevGlobalTicks = ticks;
-                    p->burstTime++;
-                }
-                release(&tickslock);
-
-                swtch(&(c->scheduler), p->context);
-                switchkvm();
-
-                // Process is done running for now.
-                // It should have changed its p->state before coming back.
-                c->proc = 0;
-            }
-        }
         release(&ptable.lock);
     }
 }
